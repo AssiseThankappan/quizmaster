@@ -14,7 +14,7 @@
         button { width: 100%; background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
         button:hover { background-color: #2980b9; }
         .hidden { display: none; }
-        .option-btn { background: #ecf0f1; color: #2c3e50; text-align: left; margin-bottom: 10px; border: 1px solid #dcdde1; }
+        .option-btn { background: #ecf0f1; color: #2c3e50; text-align: left; margin-bottom: 10px; border: 1px solid #dcdde1; width: 100%; padding: 12px; border-radius: 4px; font-size: 15px; cursor: pointer; }
         .option-btn:hover { background: #dcdde1; }
         .correct { background-color: #2ecc71 !important; color: white; }
         .wrong { background-color: #e74c3c !important; color: white; }
@@ -27,7 +27,6 @@
 <div class="container">
     <h1>PaintVita Quiz</h1>
     
-    <!-- Registration Screen -->
     <div id="registration-screen">
         <div class="form-group">
             <label for="name">Full Name</label>
@@ -44,10 +43,9 @@
         <button onclick="startQuiz()">Start Quiz</button>
     </div>
 
-    <!-- Quiz Screen -->
     <div id="quiz-screen" class="hidden">
         <div id="timer">Time: 0s</div>
-        <h3 id="question-text">Question goes here?</h3>
+        <h3 id="question-text"></h3>
         <div id="options-container"></div>
         <div id="explanation-box" class="hidden">
             <strong>Explanation:</strong> <span id="explanation-text"></span>
@@ -55,7 +53,6 @@
         <button id="next-btn" class="hidden" onclick="nextQuestion()">Next Question</button>
     </div>
 
-    <!-- Result Screen -->
     <div id="result-screen" class="hidden">
         <h2>Quiz Completed!</h2>
         <p id="score-text"></p>
@@ -72,7 +69,7 @@
     let startTime, timerInterval;
     let userDetails = {};
 
-    async function startQuiz() {
+    function startQuiz() {
         userDetails.name = document.getElementById('name').value.trim();
         userDetails.email = document.getElementById('email').value.trim();
         userDetails.employeeId = document.getElementById('empId').value.trim();
@@ -86,29 +83,34 @@
         document.getElementById('quiz-screen').innerHTML = "<h3>Loading Questions...</h3>";
         document.getElementById('quiz-screen').classList.remove('hidden');
 
-        try {
-            const response = await fetch(`${SCRIPT_URL}?action=getQuestions`);
-            questions = await response.json();
-            
-            // Rebuild base structure cleanly after loading complete
-            document.getElementById('quiz-screen').innerHTML = `
-                <div id="timer">Time: 0s</div>
-                <h3 id="question-text"></h3>
-                <div id="options-container"></div>
-                <div id="explanation-box" class="hidden"><strong>Explanation:</strong> <span id="explanation-text"></span></div>
-                <button id="next-btn" class="hidden" onclick="nextQuestion()">Next Question</button>
-            `;
-            
-            startTime = Date.now();
-            timerInterval = setInterval(() => {
-                document.getElementById('timer').innerText = `Time: ${Math.floor((Date.now() - startTime) / 1000)}s`;
-            }, 1000);
-
-            showQuestion();
-        } catch (error) {
-            alert("Error loading quiz questions. Ensure your Apps Script URL is correct.");
-        }
+        // Bypassing CORS with JSONP via script injection
+        const script = document.createElement('script');
+        script.src = `${SCRIPT_URL}?action=getQuestions&callback=handleQuestionsResponse`;
+        script.onerror = function() {
+            alert("Error loading quiz questions. Please check your network or deployment settings.");
+        };
+        document.body.appendChild(script);
     }
+
+    // This globally scoped function processes the incoming JSONP response
+    window.handleQuestionsResponse = function(data) {
+        questions = data;
+        
+        document.getElementById('quiz-screen').innerHTML = `
+            <div id="timer">Time: 0s</div>
+            <h3 id="question-text"></h3>
+            <div id="options-container"></div>
+            <div id="explanation-box" class="hidden"><strong>Explanation:</strong> <span id="explanation-text"></span></div>
+            <button id="next-btn" class="hidden" onclick="nextQuestion()">Next Question</button>
+        `;
+        
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            document.getElementById('timer').innerText = `Time: ${Math.floor((Date.now() - startTime) / 1000)}s`;
+        }, 1000);
+
+        showQuestion();
+    };
 
     function showQuestion() {
         document.getElementById('explanation-box').classList.add('hidden');
@@ -132,14 +134,13 @@
 
     function selectOption(selectedBtn, chosenLetter, correctLetter, explanation) {
         let buttons = document.querySelectorAll('.option-btn');
-        buttons.forEach(btn => btn.disabled = true); // Freeze options
+        buttons.forEach(btn => btn.disabled = true); 
 
         if (chosenLetter === correctLetter) {
             selectedBtn.classList.add('correct');
             score++;
         } else {
             selectedBtn.classList.add('wrong');
-            // Highlight correct answer mapping
             buttons.forEach(btn => {
                 if(btn.innerText.startsWith(correctLetter + '.')) {
                     btn.classList.add('correct');
@@ -177,9 +178,10 @@
         };
 
         try {
+            // POST requests using 'no-cors' mode are perfectly accepted by Google Apps Script doPost
             await fetch(SCRIPT_URL, {
                 method: "POST",
-                mode: "no-cors", // Necessary for across-origin execution setups with Apps Script
+                mode: "no-cors", 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
