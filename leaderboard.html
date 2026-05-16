@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaintVita - Leaderboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 700px; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #34495e; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; }
+        .rank { font-weight: bold; color: #3498db; }
+        .center { text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>PaintVita Live Leaderboard</h1>
+    <table id="leaderboard-table">
+        <thead>
+            <tr>
+                <th class="center">Rank</th>
+                <th>Name</th>
+                <th>Employee ID</th>
+                <th class="center">Score</th>
+                <th class="center">Time Taken</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+            <tr>
+                <td colspan="5" class="center">Loading rankings data...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const SCRIPT_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL";
+
+    async function loadLeaderboard() {
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=getLeaderboard`);
+            const data = await response.json();
+            
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="center">No submissions yet! Be the first.</td></tr>`;
+                return;
+            }
+
+            data.forEach((row, index) => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="center rank">${index + 1}</td>
+                    <td>${row.name}</td>
+                    <td>${row.employeeId}</td>
+                    <td class="center">${row.score} / ${row.total}</td>
+                    <td class="center">${row.timeTaken}s</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+        } catch (error) {
+            document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="5" class="center" style="color:red;">Error fetching updates.</td></tr>`;
+        }
+    }
+
+    // Load instantly on page access
+    loadLeaderboard();
+</script>
+</body>
+</html>

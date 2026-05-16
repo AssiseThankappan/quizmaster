@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaintVita - Quiz</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 24px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #34495e; font-weight: bold; }
+        input[type="text"], input[type="email"] { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #2980b9; }
+        .hidden { display: none; }
+        .option-btn { background: #ecf0f1; color: #2c3e50; text-align: left; margin-bottom: 10px; border: 1px solid #dcdde1; }
+        .option-btn:hover { background: #dcdde1; }
+        .correct { background-color: #2ecc71 !important; color: white; }
+        .wrong { background-color: #e74c3c !important; color: white; }
+        #explanation-box { background: #e8f4f8; border-left: 5px solid #3498db; padding: 15px; margin-top: 15px; border-radius: 4px; }
+        #timer { text-align: right; font-weight: bold; color: #e74c3c; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>PaintVita Quiz</h1>
+    
+    <!-- Registration Screen -->
+    <div id="registration-screen">
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Official Email</label>
+            <input type="email" id="email" required>
+        </div>
+        <div class="form-group">
+            <label for="empId">Employee ID</label>
+            <input type="text" id="empId" required>
+        </div>
+        <button onclick="startQuiz()">Start Quiz</button>
+    </div>
+
+    <!-- Quiz Screen -->
+    <div id="quiz-screen" class="hidden">
+        <div id="timer">Time: 0s</div>
+        <h3 id="question-text">Question goes here?</h3>
+        <div id="options-container"></div>
+        <div id="explanation-box" class="hidden">
+            <strong>Explanation:</strong> <span id="explanation-text"></span>
+        </div>
+        <button id="next-btn" class="hidden" onclick="nextQuestion()">Next Question</button>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="hidden">
+        <h2>Quiz Completed!</h2>
+        <p id="score-text"></p>
+        <button onclick="window.location.href='Leaderboard.html'">View Leaderboard</button>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = "YOUR_APPS_SCRIPT_WEB_APP_URL"; 
+    
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let startTime, timerInterval;
+    let userDetails = {};
+
+    async function startQuiz() {
+        userDetails.name = document.getElementById('name').value.trim();
+        userDetails.email = document.getElementById('email').value.trim();
+        userDetails.employeeId = document.getElementById('empId').value.trim();
+
+        if(!userDetails.name || !userDetails.email || !userDetails.employeeId) {
+            alert("Please fill in all details.");
+            return;
+        }
+
+        document.getElementById('registration-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').innerHTML = "<h3>Loading Questions...</h3>";
+        document.getElementById('quiz-screen').classList.remove('hidden');
+
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=getQuestions`);
+            questions = await response.json();
+            
+            // Rebuild base structure cleanly after loading complete
+            document.getElementById('quiz-screen').innerHTML = `
+                <div id="timer">Time: 0s</div>
+                <h3 id="question-text"></h3>
+                <div id="options-container"></div>
+                <div id="explanation-box" class="hidden"><strong>Explanation:</strong> <span id="explanation-text"></span></div>
+                <button id="next-btn" class="hidden" onclick="nextQuestion()">Next Question</button>
+            `;
+            
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                document.getElementById('timer').innerText = `Time: ${Math.floor((Date.now() - startTime) / 1000)}s`;
+            }, 1000);
+
+            showQuestion();
+        } catch (error) {
+            alert("Error loading quiz questions. Ensure your Apps Script URL is correct.");
+        }
+    }
+
+    function showQuestion() {
+        document.getElementById('explanation-box').classList.add('hidden');
+        document.getElementById('next-btn').classList.add('hidden');
+        
+        let q = questions[currentQuestionIndex];
+        document.getElementById('question-text').innerText = `Q${currentQuestionIndex + 1}: ${q.question}`;
+        
+        let optionsContainer = document.getElementById('options-container');
+        optionsContainer.innerHTML = '';
+        
+        const optionMapping = ['A', 'B', 'C', 'D'];
+        q.options.forEach((option, index) => {
+            let btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = `${optionMapping[index]}. ${option}`;
+            btn.onclick = () => selectOption(btn, optionMapping[index], q.answer, q.explanation);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function selectOption(selectedBtn, chosenLetter, correctLetter, explanation) {
+        let buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(btn => btn.disabled = true); // Freeze options
+
+        if (chosenLetter === correctLetter) {
+            selectedBtn.classList.add('correct');
+            score++;
+        } else {
+            selectedBtn.classList.add('wrong');
+            // Highlight correct answer mapping
+            buttons.forEach(btn => {
+                if(btn.innerText.startsWith(correctLetter + '.')) {
+                    btn.classList.add('correct');
+                }
+            });
+        }
+
+        document.getElementById('explanation-text').innerText = explanation || "No breakdown provided.";
+        document.getElementById('explanation-box').classList.remove('hidden');
+        document.getElementById('next-btn').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) {
+            showQuestion();
+        } else {
+            endQuiz();
+        }
+    }
+
+    async function endQuiz() {
+        clearInterval(timerInterval);
+        const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+        
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').innerHTML = "<h2>Submitting your responses...</h2>";
+        document.getElementById('result-screen').classList.remove('hidden');
+
+        const payload = {
+            ...userDetails,
+            score: score,
+            totalQuestions: questions.length,
+            timeTaken: timeTaken
+        };
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors", // Necessary for across-origin execution setups with Apps Script
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            document.getElementById('result-screen').innerHTML = `
+                <h2>Quiz Completed!</h2>
+                <p id="score-text">You scored ${score} out of ${questions.length} in ${timeTaken} seconds.</p>
+                <button onclick="window.location.href='Leaderboard.html'">View Leaderboard</button>
+            `;
+        } catch (e) {
+            alert("Submission error tracking endpoint data.");
+        }
+    }
+</script>
+</body>
+</html>
