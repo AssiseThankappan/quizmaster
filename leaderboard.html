@@ -42,37 +42,38 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx9MeJSyivXH8StH22d4UbK8af-emgBFS2LTy0MWUj7bsSWh6efyhrKucfgG-8GgAoC/exec";
 
-    async function loadLeaderboard() {
-        try {
-            const response = await fetch(`${SCRIPT_URL}?action=getLeaderboard`);
-            const data = await response.json();
-            
-            const tbody = document.getElementById('leaderboard-body');
-            tbody.innerHTML = '';
-
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="center">No submissions yet! Be the first.</td></tr>`;
-                return;
-            }
-
-            data.forEach((row, index) => {
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="center rank">${index + 1}</td>
-                    <td>${row.name}</td>
-                    <td>${row.employeeId}</td>
-                    <td class="center">${row.score} / ${row.total}</td>
-                    <td class="center">${row.timeTaken}s</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-        } catch (error) {
+    function loadLeaderboard() {
+        const script = document.createElement('script');
+        script.src = `${SCRIPT_URL}?action=getLeaderboard&callback=handleLeaderboardResponse`;
+        script.onerror = function() {
             document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="5" class="center" style="color:red;">Error fetching updates.</td></tr>`;
-        }
+        };
+        document.body.appendChild(script);
     }
 
-    // Load instantly on page access
+    window.handleLeaderboardResponse = function(data) {
+        const tbody = document.getElementById('leaderboard-body');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="center">No submissions yet! Be the first.</td></tr>`;
+            return;
+        }
+
+        data.forEach((row, index) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="center rank">${index + 1}</td>
+                <td>${row.name}</td>
+                <td>${row.employeeId}</td>
+                <td class="center">${row.score} / ${row.total}</td>
+                <td class="center">${row.timeTaken}s</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    // Initialize data load
     loadLeaderboard();
 </script>
 </body>
